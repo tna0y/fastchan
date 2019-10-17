@@ -1,0 +1,36 @@
+package fastchan
+
+import (
+	"runtime"
+	"testing"
+)
+
+func BenchmarkIntChanBuf(b *testing.B) {
+	ch := make(chan int, myMax(uint64(b.N), 2))
+	b.ResetTimer()
+	go func() {
+		for i := 0; i < b.N; i++ {
+			ch <- 1
+		}
+	}()
+	for i := 0; i < b.N; i++ {
+		<-ch
+	}
+}
+
+func BenchmarkIntChanBufNTo1(b *testing.B) {
+	ch := make(chan int, myMax(uint64(b.N), 2))
+	b.ResetTimer()
+	cores := runtime.NumCPU()
+	perGoro := b.N / cores
+	for i := 0; i < cores; i++ {
+		go func() {
+			for j := 0; j < b.N; j++ {
+				ch <- 1
+			}
+		}()
+	}
+	for i := 0; i < perGoro*cores; i++ {
+		<-ch
+	}
+}
