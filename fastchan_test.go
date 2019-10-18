@@ -2,10 +2,11 @@ package fastchan
 
 import (
 	"runtime"
+	"sync"
 	"testing"
 )
 
-func TestIntRing(t *testing.T) {
+func TestFastChan(t *testing.T) {
 	n := 1000
 	var rb *FastChan
 	rb = New(uint64(2))
@@ -23,7 +24,7 @@ func TestIntRing(t *testing.T) {
 			t.Fatal(err)
 		}
 		if v != i {
-			t.Fatal("Ti pidor")
+			t.Fatal("fail")
 		}
 	}
 
@@ -36,7 +37,7 @@ func myMax(a, b uint64) uint64 {
 	return a
 }
 
-func BenchmarkIntRingBuf1To1(b *testing.B) {
+func BenchmarkFastChan1To1(b *testing.B) {
 	ch := New(myMax(uint64(b.N), 2))
 	b.ResetTimer()
 	go func() {
@@ -49,14 +50,14 @@ func BenchmarkIntRingBuf1To1(b *testing.B) {
 	}
 }
 
-func BenchmarkIntRingBufNTo1(b *testing.B) {
+func BenchmarkFastChanNTo1(b *testing.B) {
 	ch := New(myMax(uint64(b.N), 2))
-	b.ResetTimer()
 	cores := runtime.NumCPU()
 	perGoro := b.N / cores
+	b.ResetTimer()
 	for i := 0; i < cores; i++ {
 		go func() {
-			for j := 0; j < b.N; j++ {
+			for j := 0; j < perGoro; j++ {
 				ch.Put(1)
 			}
 		}()
@@ -64,4 +65,50 @@ func BenchmarkIntRingBufNTo1(b *testing.B) {
 	for i := 0; i < perGoro*cores; i++ {
 		ch.Get()
 	}
+}
+
+func BenchmarkFastChan1ToN(b *testing.B) {
+	ch := New(myMax(uint64(b.N), 2))
+	wg := sync.WaitGroup{}
+	cores := runtime.NumCPU()
+	perGoro := b.N / cores
+	b.ResetTimer()
+	for i := 0; i < cores; i++ {
+		wg.Add(1)
+		go func() {
+			for j := 0; j < perGoro; j++ {
+				ch.Get()
+			}
+			wg.Done()
+		}()
+	}
+	for i := 0; i < perGoro*cores; i++ {
+		ch.Put(i)
+	}
+	wg.Wait()
+}
+
+func BenchmarkFastChanNToN(b *testing.B) {
+	ch := New(myMax(uint64(b.N), 2))
+	wg := sync.WaitGroup{}
+	cores := runtime.NumCPU()
+	perGoro := b.N / cores
+	b.ResetTimer()
+
+	for i := 0; i < cores; i++ {
+		wg.Add(1)
+		go func() {
+			for j := 0; j < perGoro; j++ {
+				ch.Put(j)
+			}
+		}()
+		go func() {
+			for j := 0; j < perGoro; j++ {
+				ch.Get()
+			}
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
 }
