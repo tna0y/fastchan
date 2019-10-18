@@ -3,7 +3,6 @@ Go channels, but faster
 ## When to use
 ## Limitations
 * Only buffered channels are supported (for now)
-* Minimum buffer size is 2
 * Buffer size is rounded up to the nearest power of two
 ## How to use
 ## Perfomance

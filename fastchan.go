@@ -2,6 +2,7 @@ package fastchan
 
 import (
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 )
@@ -14,7 +15,7 @@ var (
 	ErrDisposed = errors.New(`queue: disposed`)
 )
 
-func roundUp(v uint64) uint64 {
+func roundUp(v uint32) uint32 {
 	v--
 	v |= v >> 1
 	v |= v >> 2
@@ -31,7 +32,11 @@ type node struct {
 	data     interface{}
 }
 
-const nodePtrSize = unsafe.Sizeof(&node{})
+const (
+	nodePtrSize        = unsafe.Sizeof(&node{})
+	maskHigh    uint64 = 1 << 63
+	maskLow     uint64 = (1 << 63) - 1
+)
 
 type FastChan struct {
 	_padding0    [8]uint64
@@ -46,15 +51,15 @@ type FastChan struct {
 	_padding4    [8]uint64
 }
 
-func (fc *FastChan) init(size uint64) {
+func (fc *FastChan) init(size uint32) {
 	size = roundUp(size)
 	fc.nodes = make([]*node, size)
 	fc.nodePtr = uintptr(unsafe.Pointer(&fc.nodes[0]))
 
-	for i := uint64(0); i < size; i++ {
-		fc.nodes[i] = &node{position: i}
+	for i := uint32(0); i < size; i++ {
+		fc.nodes[i] = &node{position: uint64(i)}
 	}
-	fc.mask = size - 1 // so we don't have to do this with every put/get operation
+	fc.mask = uint64(size - 1) // so we don't have to do this with every put/get operation
 }
 
 // Put adds the provided item to the queue.  If the queue is full, this
@@ -72,13 +77,18 @@ func (fc *FastChan) TryPut(item interface{}) (bool, error) {
 	return fc.put(item, true)
 }
 
+var lock sync.Mutex
+
 // We avoid using atomic loads and stores, since they offer no memory barriers. We can avoid calls
 // See https://github.com/golang/go/issues/5045
 func (fc *FastChan) put(item interface{}, offer bool) (bool, error) {
 
 	var (
-		n   *node
-		pos uint64
+		n       *node
+		pos     uint64
+		cPos    uint64
+		full    bool
+		itemPos uint64
 	)
 	for {
 		if fc.closed == 1 {
@@ -89,7 +99,10 @@ func (fc *FastChan) put(item interface{}, offer bool) (bool, error) {
 		// The same as  n = fc.nodes[pos&fc.mask] but without bounds check
 		n = *(**node)(unsafe.Pointer(fc.nodePtr + uintptr(pos&fc.mask)*nodePtrSize))
 
-		if n.position == pos && atomic.CompareAndSwapUint64(&fc.queue, pos, pos+1) {
+		cPos = n.position
+		full = cPos&maskHigh == maskHigh
+		itemPos = cPos & maskLow
+		if !full && itemPos == pos && atomic.CompareAndSwapUint64(&fc.queue, pos, pos+1) {
 			break
 		}
 
@@ -100,15 +113,18 @@ func (fc *FastChan) put(item interface{}, offer bool) (bool, error) {
 	}
 
 	n.data = item
-	n.position = pos + 1
+	n.position = cPos | maskHigh
 	return true, nil
 }
 
 func (fc *FastChan) Get() (interface{}, error) {
 
 	var (
-		n   *node
-		pos uint64
+		n       *node
+		pos     uint64
+		cPos    uint64
+		full    bool
+		itemPos uint64
 	)
 	for {
 		if fc.closed == 1 {
@@ -119,7 +135,10 @@ func (fc *FastChan) Get() (interface{}, error) {
 		// The same as  n = fc.nodes[pos&fc.mask] but without bounds check
 		n = *(**node)(unsafe.Pointer(fc.nodePtr + uintptr(pos&fc.mask)*nodePtrSize))
 
-		if n.position == pos+1 && atomic.CompareAndSwapUint64(&fc.dequeue, pos, pos+1) {
+		cPos = n.position
+		full = cPos&maskHigh == maskHigh
+		itemPos = cPos & maskLow
+		if full && itemPos == pos && atomic.CompareAndSwapUint64(&fc.dequeue, pos, pos+1) {
 			break
 		}
 
@@ -127,13 +146,13 @@ func (fc *FastChan) Get() (interface{}, error) {
 	}
 	data := n.data
 	n.data = nil
-	n.position = pos + fc.mask + 1
+	n.position = (pos + fc.mask + 1) & maskLow
 	return data, nil
 }
 
 // Len returns the number of items in the queue.
-func (fc *FastChan) Len() uint64 {
-	return fc.queue - fc.dequeue
+func (fc *FastChan) Len() uint32 {
+	return uint32(fc.queue - fc.dequeue)
 }
 
 // Cap returns the capacity of this ring buffer.
@@ -154,7 +173,7 @@ func (fc *FastChan) IsClosed() bool {
 	return fc.closed == 1
 }
 
-func New(size uint64) *FastChan {
+func New(size uint32) *FastChan {
 	rb := &FastChan{}
 	rb.init(size)
 	return rb

@@ -7,7 +7,7 @@ import (
 )
 
 func BenchmarkChan1To1(b *testing.B) {
-	ch := make(chan int, myMax(uint64(b.N), 2))
+	ch := make(chan int, myMax(uint32(b.N), 2))
 	b.ResetTimer()
 	go func() {
 		for i := 0; i < b.N; i++ {
@@ -20,7 +20,7 @@ func BenchmarkChan1To1(b *testing.B) {
 }
 
 func BenchmarkChanNTo1(b *testing.B) {
-	ch := make(chan int, myMax(uint64(b.N), 2))
+	ch := make(chan int, myMax(uint32(b.N), 2))
 	b.ResetTimer()
 	cores := runtime.NumCPU()
 	perGoro := b.N / cores
@@ -37,7 +37,7 @@ func BenchmarkChanNTo1(b *testing.B) {
 }
 
 func BenchmarkChan1ToN(b *testing.B) {
-	ch := make(chan int, myMax(uint64(b.N), 2))
+	ch := make(chan int, myMax(uint32(b.N), 2))
 	wg := sync.WaitGroup{}
 	cores := runtime.NumCPU()
 	perGoro := b.N / cores
@@ -58,7 +58,7 @@ func BenchmarkChan1ToN(b *testing.B) {
 }
 
 func BenchmarkChanNToN(b *testing.B) {
-	ch := make(chan int, myMax(uint64(b.N), 2))
+	ch := make(chan int, myMax(uint32(b.N), 2))
 	wg := sync.WaitGroup{}
 	cores := runtime.NumCPU()
 	perGoro := b.N / cores

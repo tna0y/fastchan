@@ -6,10 +6,14 @@ import (
 	"testing"
 )
 
-func TestFastChan(t *testing.T) {
+//
+// Tests
+//
+
+func TestBasic(t *testing.T) {
 	n := 1000
 	var rb *FastChan
-	rb = New(uint64(2))
+	rb = New(uint32(2))
 	go func() {
 		for i := 0; i < n; i++ {
 			err := rb.Put(i)
@@ -30,7 +34,35 @@ func TestFastChan(t *testing.T) {
 
 }
 
-func myMax(a, b uint64) uint64 {
+func TestBufferSizeOne(t *testing.T) {
+	n := 1000
+	var rb *FastChan
+	rb = New(uint32(1))
+	go func() {
+		for i := 0; i < n; i++ {
+			err := rb.Put(i)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}()
+	for i := 0; i < n; i++ {
+		v, err := rb.Get()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v != i {
+			t.Fatal("fail")
+		}
+	}
+
+}
+
+//
+// Benchmarks
+//
+
+func myMax(a, b uint32) uint32 {
 	if a < b {
 		return b
 	}
@@ -38,7 +70,7 @@ func myMax(a, b uint64) uint64 {
 }
 
 func BenchmarkFastChan1To1(b *testing.B) {
-	ch := New(myMax(uint64(b.N), 2))
+	ch := New(myMax(uint32(b.N), 2))
 	b.ResetTimer()
 	go func() {
 		for i := 0; i < b.N; i++ {
@@ -51,7 +83,7 @@ func BenchmarkFastChan1To1(b *testing.B) {
 }
 
 func BenchmarkFastChanNTo1(b *testing.B) {
-	ch := New(myMax(uint64(b.N), 2))
+	ch := New(myMax(uint32(b.N), 2))
 	cores := runtime.NumCPU()
 	perGoro := b.N / cores
 	b.ResetTimer()
@@ -68,7 +100,7 @@ func BenchmarkFastChanNTo1(b *testing.B) {
 }
 
 func BenchmarkFastChan1ToN(b *testing.B) {
-	ch := New(myMax(uint64(b.N), 2))
+	ch := New(myMax(uint32(b.N), 2))
 	wg := sync.WaitGroup{}
 	cores := runtime.NumCPU()
 	perGoro := b.N / cores
@@ -89,7 +121,7 @@ func BenchmarkFastChan1ToN(b *testing.B) {
 }
 
 func BenchmarkFastChanNToN(b *testing.B) {
-	ch := New(myMax(uint64(b.N), 2))
+	ch := New(myMax(uint32(b.N), 2))
 	wg := sync.WaitGroup{}
 	cores := runtime.NumCPU()
 	perGoro := b.N / cores
