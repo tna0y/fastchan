@@ -1,6 +1,7 @@
 package fastchan
 
 import (
+	"runtime"
 	"sync/atomic"
 )
 
@@ -19,8 +20,6 @@ var (
 	ErrEmptyQueue = errors.New(`queue: empty queue`)
 )
 
-// roundUp takes a uint64 greater than 0 and rounds it up to the next
-// power of 2.
 func roundUp(v uint64) uint64 {
 	v--
 	v |= v >> 1
@@ -50,10 +49,6 @@ type FastChan struct {
 	_padding3    [8]uint64
 	nodes        nodes
 	_padding4    [8]uint64
-	semPut       uint32
-	_paddng5     [8]uint64
-	semGet       uint32
-	_padding5    [8]uint64
 }
 
 func (fc *FastChan) init(size uint64) {
@@ -62,7 +57,6 @@ func (fc *FastChan) init(size uint64) {
 	for i := uint64(0); i < size; i++ {
 		fc.nodes[i] = &node{position: i}
 	}
-	fc.semPut = uint32(size)
 	fc.mask = size - 1 // so we don't have to do this with every put/get operation
 }
 
@@ -85,8 +79,10 @@ func (fc *FastChan) TryPut(item interface{}) (bool, error) {
 // See https://github.com/golang/go/issues/5045
 func (fc *FastChan) put(item interface{}, offer bool) (bool, error) {
 
-	var n *node
-	var pos uint64
+	var (
+		n   *node
+		pos uint64
+	)
 	for {
 		if fc.closed == 1 {
 			return false, ErrDisposed
@@ -100,16 +96,11 @@ func (fc *FastChan) put(item interface{}, offer bool) (bool, error) {
 		if offer {
 			return false, nil
 		}
-
-		// We allow semaphores to go over to higher values. This causes some spinning but eventually leads to threads
-		// stalling and waiting to
-		semacquire(&fc.semPut)
-
+		runtime.Gosched()
 	}
 
 	n.data = item
 	n.position = pos + 1
-	semrelease(&fc.semGet, false, 0)
 	return true, nil
 }
 
@@ -130,18 +121,17 @@ func (fc *FastChan) Get() (interface{}, error) {
 			break
 		}
 
-		semacquire(&fc.semGet)
+		runtime.Gosched()
 	}
 	data := n.data
 	n.data = nil
 	n.position = pos + fc.mask + 1
-	semrelease(&fc.semPut, false, 0)
 	return data, nil
 }
 
 // Len returns the number of items in the queue.
 func (fc *FastChan) Len() uint64 {
-	return atomic.LoadUint64(&fc.queue) - atomic.LoadUint64(&fc.dequeue)
+	return fc.queue - fc.dequeue
 }
 
 // Cap returns the capacity of this ring buffer.
