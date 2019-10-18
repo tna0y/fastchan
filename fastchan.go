@@ -3,6 +3,7 @@ package fastchan
 import (
 	"runtime"
 	"sync/atomic"
+	"unsafe"
 )
 
 import "errors"
@@ -37,7 +38,7 @@ type node struct {
 	data     interface{}
 }
 
-type nodes []*node
+const nodePtrSize = unsafe.Sizeof(&node{})
 
 type FastChan struct {
 	_padding0    [8]uint64
@@ -47,13 +48,16 @@ type FastChan struct {
 	_padding2    [8]uint64
 	mask, closed uint64
 	_padding3    [8]uint64
-	nodes        nodes
+	nodes        []*node
+	nodePtr      uintptr
 	_padding4    [8]uint64
 }
 
 func (fc *FastChan) init(size uint64) {
 	size = roundUp(size)
-	fc.nodes = make(nodes, size)
+	fc.nodes = make([]*node, size)
+	fc.nodePtr = uintptr(unsafe.Pointer(&fc.nodes[0]))
+
 	for i := uint64(0); i < size; i++ {
 		fc.nodes[i] = &node{position: i}
 	}
@@ -88,7 +92,10 @@ func (fc *FastChan) put(item interface{}, offer bool) (bool, error) {
 			return false, ErrDisposed
 		}
 		pos = fc.queue
-		n = fc.nodes[pos&fc.mask]
+
+		// The same as  n = fc.nodes[pos&fc.mask] but without bounds check
+		n = *(**node)(unsafe.Pointer(fc.nodePtr + uintptr(pos&fc.mask)*nodePtrSize))
+
 		if n.position == pos && atomic.CompareAndSwapUint64(&fc.queue, pos, pos+1) {
 			break
 		}
@@ -115,7 +122,9 @@ func (fc *FastChan) Get() (interface{}, error) {
 			return nil, ErrDisposed
 		}
 		pos = fc.dequeue
-		n = fc.nodes[pos&fc.mask]
+
+		// The same as  n = fc.nodes[pos&fc.mask] but without bounds check
+		n = *(**node)(unsafe.Pointer(fc.nodePtr + uintptr(pos&fc.mask)*nodePtrSize))
 
 		if n.position == pos+1 && atomic.CompareAndSwapUint64(&fc.dequeue, pos, pos+1) {
 			break
