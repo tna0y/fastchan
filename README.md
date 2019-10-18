@@ -1,4 +1,6 @@
 # Fastchan
+[![Build Status](https://travis-ci.org/tna0y/Python-random-module-cracker.svg?branch=master)](https://travis-ci.org/tna0y/Python-random-module-cracker)
+
 Go channels, but faster
 ## When to use
 ## Limitations
