@@ -2,17 +2,8 @@ package fastchan
 
 import (
 	"runtime"
-	"sync"
 	"sync/atomic"
 	"unsafe"
-)
-
-import "errors"
-
-var (
-	// ErrDisposed is returned when an operation is performed on a disposed
-	// queue.
-	ErrDisposed = errors.New(`queue: disposed`)
 )
 
 func roundUp(v uint32) uint32 {
@@ -65,23 +56,20 @@ func (fc *FastChan) init(size uint32) {
 // Put adds the provided item to the queue.  If the queue is full, this
 // call will block until an item is added to the queue or Close is called
 // on the queue.  An error will be returned if the queue is disposed.
-func (fc *FastChan) Put(item interface{}) error {
-	_, err := fc.put(item, false)
-	return err
+func (fc *FastChan) Put(item interface{}) {
+	fc.put(item, false)
 }
 
 // Offer adds the provided item to the queue if there is space.  If the queue
 // is full, this call will return false.  An error will be returned if the
 // queue is disposed.
-func (fc *FastChan) TryPut(item interface{}) (bool, error) {
+func (fc *FastChan) TryPut(item interface{}) bool {
 	return fc.put(item, true)
 }
 
-var lock sync.Mutex
-
 // We avoid using atomic loads and stores, since they offer no memory barriers. We can avoid calls
 // See https://github.com/golang/go/issues/5045
-func (fc *FastChan) put(item interface{}, offer bool) (bool, error) {
+func (fc *FastChan) put(item interface{}, offer bool) bool {
 
 	var (
 		n       *node
@@ -92,7 +80,7 @@ func (fc *FastChan) put(item interface{}, offer bool) (bool, error) {
 	)
 	for {
 		if fc.closed == 1 {
-			return false, ErrDisposed
+			panic("Put on closed fastchan")
 		}
 		pos = fc.queue
 
@@ -107,17 +95,17 @@ func (fc *FastChan) put(item interface{}, offer bool) (bool, error) {
 		}
 
 		if offer {
-			return false, nil
+			return false
 		}
 		runtime.Gosched()
 	}
 
 	n.data = item
 	n.position = cPos | maskHigh
-	return true, nil
+	return true
 }
 
-func (fc *FastChan) Get() (interface{}, error) {
+func (fc *FastChan) Get() interface{} {
 
 	var (
 		n       *node
@@ -128,7 +116,7 @@ func (fc *FastChan) Get() (interface{}, error) {
 	)
 	for {
 		if fc.closed == 1 {
-			return nil, ErrDisposed
+			panic("Get on closed fastchan")
 		}
 		pos = fc.dequeue
 
@@ -147,7 +135,7 @@ func (fc *FastChan) Get() (interface{}, error) {
 	data := n.data
 	n.data = nil
 	n.position = (pos + fc.mask + 1) & maskLow
-	return data, nil
+	return data
 }
 
 // Len returns the number of items in the queue.
