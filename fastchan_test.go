@@ -16,17 +16,11 @@ func TestBasic(t *testing.T) {
 	rb = New(uint32(2))
 	go func() {
 		for i := 0; i < n; i++ {
-			err := rb.Put(i)
-			if err != nil {
-				t.Fatal(err)
-			}
+			rb.Put(i)
 		}
 	}()
 	for i := 0; i < n; i++ {
-		v, err := rb.Get()
-		if err != nil {
-			t.Fatal(err)
-		}
+		v := rb.Get()
 		if v != i {
 			t.Fatal("fail")
 		}
@@ -40,17 +34,11 @@ func TestBufferSizeOne(t *testing.T) {
 	rb = New(uint32(1))
 	go func() {
 		for i := 0; i < n; i++ {
-			err := rb.Put(i)
-			if err != nil {
-				t.Fatal(err)
-			}
+			rb.Put(i)
 		}
 	}()
 	for i := 0; i < n; i++ {
-		v, err := rb.Get()
-		if err != nil {
-			t.Fatal(err)
-		}
+		v := rb.Get()
 		if v != i {
 			t.Fatal("fail")
 		}
