@@ -57,6 +57,25 @@ func myMax(a, b uint32) uint32 {
 	return a
 }
 
+func BenchmarkFastChanBufferedRead(b *testing.B) {
+	ch := New(uint32(b.N))
+	for i := 0; i < b.N; i++ {
+		ch.Put(1)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ch.Get()
+	}
+}
+
+func BenchmarkFastChanBufferedWrite(b *testing.B) {
+	ch := New(uint32(b.N))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ch.Put(1)
+	}
+}
+
 func BenchmarkFastChan1To1(b *testing.B) {
 	ch := New(myMax(uint32(b.N), 2))
 	b.ResetTimer()

@@ -6,6 +6,25 @@ import (
 	"testing"
 )
 
+func BenchmarkChanBufferedRead(b *testing.B) {
+	ch := make(chan int, b.N)
+	for i := 0; i < b.N; i++ {
+		ch <- 1
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		<-ch
+	}
+}
+
+func BenchmarkChanBufferedWrite(b *testing.B) {
+	ch := make(chan int, b.N)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ch <- 1
+	}
+}
+
 func BenchmarkChan1To1(b *testing.B) {
 	ch := make(chan int, myMax(uint32(b.N), 2))
 	b.ResetTimer()

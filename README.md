@@ -23,13 +23,13 @@ func main() {
     fc.Put(1)
     
     // Try to put one more item
-    if ok, _ := fc.TryPut(2); ok {
+    if ok := fc.TryPut(2); ok {
         fmt.Println("Success!")
     }
     
     // Take two items we just put
-    a, _ := fc.Get()
-    b, _ := fc.Get()
+    a := fc.Get()
+    b := fc.Get()
     
     // Will print "1 2"
     fmt.Println(a, b)
@@ -43,17 +43,21 @@ func main() {
 Fastchan may be up to 4.5x times faster
 
 ```
-BenchmarkFastChan1To1-8   	100341570	        12.1 ns/op
-BenchmarkFastChanNTo1-8   	36817144	        32.6 ns/op
-BenchmarkFastChan1ToN-8   	19721079	        55.1 ns/op
-BenchmarkFastChanNToN-8   	21083403	        56.9 ns/op
+BenchmarkFastChan1To1-8            	84515737	        13.3 ns/op
+BenchmarkFastChanNTo1-8            	33871244	        35.5 ns/op
+BenchmarkFastChan1ToN-8            	21209842	        60.8 ns/op
+BenchmarkFastChanNToN-8            	20933433	        56.8 ns/op
+BenchmarkFastChanBufferedRead-8    	91768263	        13.0 ns/op
+BenchmarkFastChanBufferedWrite-8   	89748022	        13.3 ns/op
 ```
 Equivalent benchmarks for channels
 ```
-BenchmarkChan1To1-8       	21440000	        54.4 ns/op
-BenchmarkChanNTo1-8       	19220120	        60.5 ns/op
-BenchmarkChan1ToN-8       	12893852	        87.8 ns/op
-BenchmarkChanNToN-8       	17704915	        71.5 ns/op
+BenchmarkChan1To1-8                	20599215	        56.1 ns/op
+BenchmarkChanNTo1-8                	18317797	        61.4 ns/op
+BenchmarkChan1ToN-8                	13170680	        85.3 ns/op
+BenchmarkChanNToN-8                	16088103	        72.5 ns/op
+BenchmarkChanBufferedRead-8        	49805517	        24.4 ns/op
+BenchmarkChanBufferedWrite-8       	46749292	        25.9 ns/op
 ```
 ## Credits
 * Implementation idea [1024cores.net](http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue)
