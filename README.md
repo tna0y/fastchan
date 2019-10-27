@@ -12,7 +12,7 @@ The following example pretty much covers the entire API provided by Fastchan
 package main
 
 import (
-	"github.com/tna0y/fastchan"
+    "github.com/tna0y/fastchan"
     "fmt"
 )
 func main() {
