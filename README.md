@@ -1,8 +1,10 @@
 # Fastchan
 [![Build Status](https://travis-ci.org/tna0y/Python-random-module-cracker.svg?branch=master)](https://travis-ci.org/tna0y/Python-random-module-cracker)
 
-Go channels, but faster
-## When to use
+Fastchan is a data structure that aims to create a **faster** version of Go channels
+that preserves all properties and thus may be swapped in easily. 
+
+The aim is to achieve superior performance through the use of lock-free data structures instead of mutexes.
 
 ## Install
 `go get github.com/tna0y/fastchan`
@@ -59,6 +61,3 @@ BenchmarkChanNToN-8                	16088103	        72.5 ns/op
 BenchmarkChanBufferedRead-8        	49805517	        24.4 ns/op
 BenchmarkChanBufferedWrite-8       	46749292	        25.9 ns/op
 ```
-## Credits
-* Implementation idea [1024cores.net](http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue)
-* Original implementation [Workiva/go-datastructures](https://github.com/Workiva/go-datastructures/blob/master/queue/ring.go)
