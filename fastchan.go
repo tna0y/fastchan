@@ -30,16 +30,17 @@ const (
 )
 
 type FastChan struct {
-	_padding0    [8]uint64
-	queue        uint64
-	_padding1    [8]uint64
-	dequeue      uint64
-	_padding2    [8]uint64
-	mask, closed uint64
-	_padding3    [8]uint64
-	nodes        []*node
-	nodePtr      uintptr
-	_padding4    [8]uint64
+	_padding0 [8]uint64
+	queue     uint64
+	_padding1 [8]uint64
+	dequeue   uint64
+	_padding2 [8]uint64
+	mask      uint64
+	closed    uint32
+	_padding3 [8]uint64
+	nodes     []*node
+	nodePtr   uintptr
+	_padding4 [8]uint64
 }
 
 func (fc *FastChan) init(size uint32) {
@@ -101,7 +102,7 @@ func (fc *FastChan) put(item interface{}, offer bool) bool {
 	}
 
 	n.data = item
-	n.position = cPos | maskHigh
+	atomic.StoreUint64(&n.position, cPos|maskHigh)
 	return true
 }
 
@@ -115,7 +116,7 @@ func (fc *FastChan) Get() interface{} {
 		itemPos uint64
 	)
 	for {
-		if fc.closed == 1 {
+		if atomic.LoadUint32(&fc.closed) == 1 {
 			panic("Get on closed fastchan")
 		}
 		pos = fc.dequeue
@@ -134,7 +135,7 @@ func (fc *FastChan) Get() interface{} {
 	}
 	data := n.data
 	n.data = nil
-	n.position = (pos + fc.mask + 1) & maskLow
+	atomic.StoreUint64(&n.position, (pos+fc.mask+1)&maskLow)
 	return data
 }
 

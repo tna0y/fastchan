@@ -11,9 +11,9 @@ import (
 //
 
 func TestBasic(t *testing.T) {
-	n := 1000
+	n := 10000
 	var rb *FastChan
-	rb = New(uint32(2))
+	rb = New(uint32(1))
 	go func() {
 		for i := 0; i < n; i++ {
 			rb.Put(i)
@@ -43,7 +43,6 @@ func TestBufferSizeOne(t *testing.T) {
 			t.Fatal("fail")
 		}
 	}
-
 }
 
 //
