@@ -167,3 +167,72 @@ func New(size uint32) *FastChan {
 	rb.init(size)
 	return rb
 }
+
+// Michael-Scott unbounded queue
+// http://www.cs.rochester.edu/~scott/papers/1996_PODC_queues.pdf?
+type msqueue struct {
+	head *msnode
+	tail *msnode
+}
+
+type msnode struct {
+	val  int
+	next *msnode
+}
+
+func newMSQueue() *msqueue {
+	item := &msnode{}
+	return &msqueue{
+		head: item,
+		tail: item,
+	}
+}
+
+func (q *msqueue) push(val int) {
+	// TODO: use thread-local struct cache
+	newTail := &msnode{val: val}
+	for {
+		tail := q.tail
+		if atomic.CompareAndSwapPointer(
+			(*unsafe.Pointer)(unsafe.Pointer(&tail.next)),
+			nil,
+			unsafe.Pointer(newTail)) {
+			atomic.CompareAndSwapPointer(
+				(*unsafe.Pointer)(unsafe.Pointer(&q.tail)),
+				unsafe.Pointer(tail),
+				unsafe.Pointer(newTail))
+			return
+		} else {
+			atomic.CompareAndSwapPointer(
+				(*unsafe.Pointer)(unsafe.Pointer(&q.tail)),
+				unsafe.Pointer(tail),
+				unsafe.Pointer(tail.next))
+		}
+	}
+}
+
+func (q *msqueue) pop() (int, bool) {
+	for {
+		head := q.head
+		tail := q.tail
+		nextHead := head.next
+		if head == tail {
+			if nextHead == nil {
+				return 0, false
+			} else {
+				atomic.CompareAndSwapPointer(
+					(*unsafe.Pointer)(unsafe.Pointer(&q.tail)),
+					unsafe.Pointer(tail),
+					unsafe.Pointer(tail.next))
+			}
+		} else {
+			res := nextHead.val
+			if atomic.CompareAndSwapPointer(
+				(*unsafe.Pointer)(unsafe.Pointer(&q.head)),
+				unsafe.Pointer(head),
+				unsafe.Pointer(nextHead)) {
+				return res, true
+			}
+		}
+	}
+}
