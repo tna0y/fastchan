@@ -61,3 +61,6 @@ BenchmarkChanNToN-8                	16088103	        72.5 ns/op
 BenchmarkChanBufferedRead-8        	49805517	        24.4 ns/op
 BenchmarkChanBufferedWrite-8       	46749292	        25.9 ns/op
 ```
+## Credits
+* Implementation idea [1024cores.net](http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue)
+* Original implementation [Workiva/go-datastructures](https://github.com/Workiva/go-datastructures/blob/master/queue/ring.go)
