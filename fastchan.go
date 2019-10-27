@@ -68,8 +68,6 @@ func (fc *FastChan) TryPut(item interface{}) bool {
 	return fc.put(item, true)
 }
 
-// We avoid using atomic loads and stores, since they offer no memory barriers. We can avoid calls
-// See https://github.com/golang/go/issues/5045
 func (fc *FastChan) put(item interface{}, offer bool) bool {
 
 	var (
@@ -80,7 +78,7 @@ func (fc *FastChan) put(item interface{}, offer bool) bool {
 		itemPos uint64
 	)
 	for {
-		if fc.closed == 1 {
+		if atomic.LoadUint32(&fc.closed) == 1 {
 			panic("Put on closed fastchan")
 		}
 		pos = fc.queue
